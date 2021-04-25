@@ -1,132 +1,104 @@
-﻿using System;
+using System;
+using System.Threading;
+using System.Text;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Threading;
 
-
-namespace cli_life
+namespace ConsoleApp1
 {
-    public class Cell
+    class Life
     {
-        public bool IsAlive;
-        public readonly List<Cell> neighbors = new List<Cell>();
-        private bool IsAliveNext;
-        public void DetermineNextLiveState()
-        {
-            int liveNeighbors = neighbors.Where(x => x.IsAlive).Count();
-            if (IsAlive)
-                IsAliveNext = liveNeighbors == 2 || liveNeighbors == 3;
-            else
-                IsAliveNext = liveNeighbors == 3;
-        }
-        public void Advance()
-        {
-            IsAlive = IsAliveNext;
-        }
-    }
-    public class Board
-    {
-        public readonly Cell[,] Cells;
-        public readonly int CellSize;
-
-        public int Columns { get { return Cells.GetLength(0); } }
-        public int Rows { get { return Cells.GetLength(1); } }
-        public int Width { get { return Columns * CellSize; } }
-        public int Height { get { return Rows * CellSize; } }
-
-        public Board(int width, int height, int cellSize, double liveDensity = .1)
-        {
-            CellSize = cellSize;
-
-            Cells = new Cell[width / cellSize, height / cellSize];
-            for (int x = 0; x < Columns; x++)
-                for (int y = 0; y < Rows; y++)
-                    Cells[x, y] = new Cell();
-
-            ConnectNeighbors();
-            Randomize(liveDensity);
-        }
-
-        readonly Random rand = new Random();
-        public void Randomize(double liveDensity)
-        {
-            foreach (var cell in Cells)
-                cell.IsAlive = rand.NextDouble() < liveDensity;
-        }
-
-        public void Advance()
-        {
-            foreach (var cell in Cells)
-                cell.DetermineNextLiveState();
-            foreach (var cell in Cells)
-                cell.Advance();
-        }
-        private void ConnectNeighbors()
-        {
-            for (int x = 0; x < Columns; x++)
+		private Random random = new Random();
+		const int width = 10;
+		const int height = 10;
+		int [,] space;
+		private int life_count;
+		public Life()
+		{
+			space = new int[width + 2, height + 2];
+			for (int i = 0; i < width + 2; i++)
+			{
+				for (int j = 0; j < height + 2; j++)
+				{
+					space[i,j] = 0;
+				}
+			}
+		}
+		public void Generate()
+		{
+			for (int i = 1; i < width + 1; i++)
+			{
+				for (int j = 1; j < height + 1; j++)
+				{
+					space[i,j] = random.Next(0, 2);
+				}
+			}
+		}
+		public void PrintSpace()
+		{
+			for (int i = 1; i < width + 1; i++)
+			{
+				for (int j = 1; j < height + 1; j++)
+				{
+					if (space[i,j] == 1)
+						Console.Write("*");
+					else
+						Console.Write(" ");
+				}
+				Console.Write("\n");
+			}
+		}
+		public void CheckRules(int i, int j)
+		{
+			life_count = 0;
+			for (int k = i - 1; k < i + 2; k++)
             {
-                for (int y = 0; y < Rows; y++)
+				for (int l = j - 1; l < j+2; l++)
                 {
-                    int xL = (x > 0) ? x - 1 : Columns - 1;
-                    int xR = (x < Columns - 1) ? x + 1 : 0;
-
-                    int yT = (y > 0) ? y - 1 : Rows - 1;
-                    int yB = (y < Rows - 1) ? y + 1 : 0;
-
-                    Cells[x, y].neighbors.Add(Cells[xL, yT]);
-                    Cells[x, y].neighbors.Add(Cells[x, yT]);
-                    Cells[x, y].neighbors.Add(Cells[xR, yT]);
-                    Cells[x, y].neighbors.Add(Cells[xL, y]);
-                    Cells[x, y].neighbors.Add(Cells[xR, y]);
-                    Cells[x, y].neighbors.Add(Cells[xL, yB]);
-                    Cells[x, y].neighbors.Add(Cells[x, yB]);
-                    Cells[x, y].neighbors.Add(Cells[xR, yB]);
+					life_count = life_count + space[k, l];
                 }
             }
-        }
-    }
+			life_count = life_count - space[i, j];
+
+			if (life_count == 3 && space[i,j] == 0)
+            {
+				space[i, j] = 1;
+            }
+			if ((life_count < 2 || life_count > 3) && space[i, j] == 1)
+			{
+				space[i, j] = 0;
+            }
+		}
+
+		public void Run()
+        {
+			Generate();
+			PrintSpace();
+			Thread.Sleep(10);
+			Console.SetCursorPosition(0, 0);
+			while (true)
+			{
+				for (int i = 1; i < width + 1; i++)
+				{
+					for (int j = 1; j < height + 1; j++)
+					{
+						CheckRules(i, j);
+					}
+				}
+				PrintSpace();
+				Thread.Sleep(10);
+				Console.SetCursorPosition(0, 0);
+			}
+		}
+	}
+
     class Program
     {
-        static Board board;
-        static private void Reset()
-        {
-            board = new Board(
-                width: 50,
-                height: 20,
-                cellSize: 1,
-                liveDensity: 0.5);
-        }
-        static void Render()
-        {
-            for (int row = 0; row < board.Rows; row++)
-            {
-                for (int col = 0; col < board.Columns; col++)   
-                {
-                    var cell = board.Cells[col, row];
-                    if (cell.IsAlive)
-                    {
-                        Console.Write('*');
-                    }
-                    else
-                    {
-                        Console.Write(' ');
-                    }
-                }
-                Console.Write('\n');
-            }
-        }
         static void Main(string[] args)
         {
-            Reset();
-            while(true)
-            {
-                Console.Clear();
-                Render();
-                board.Advance();
-                Thread.Sleep(1000);
-            }
-        }
+			Life life = new Life();
+			life.Run();
+		}
     }
 }
